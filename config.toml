@@ -1,5 +1,5 @@
 # Site settings
-baseurl = "/site-crab"
+baseurl = "/"
 defaultContentLanguage = "fr"
 languageCode = "fr-fr"
 title = "CRAB - Collectif Rennais des Amateurs de Bières — Blog"
