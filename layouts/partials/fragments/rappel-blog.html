@@ -1,0 +1,141 @@
+{{- $self := . -}}
+{{- .page_scratch.Add "js" (dict "file" "syna-collapse.js") -}}
+{{- $name := strings.TrimSuffix ".md" (replace .self.Name "/index.md" "") -}}
+{{- $bg := .self.Scratch.Get "bg" }}
+{{- $list_pages := partial "helpers/list-pages.html" (dict "Site" .Site "Params" .Params "root" .root "page_scratch" .page_scratch) -}}
+{{- $sorted_pages := $list_pages.sorted_pages -}}
+<section id="{{ $name }}">
+  <div class="overlay container-fluid {{- printf " bg-%s" $bg -}}">
+  <div class="container">
+    <div class="row">
+      <div class="col text-center
+        {{- if eq $bg "dark" -}}
+          {{- printf " text-%s" "light" -}}
+        {{- else -}}
+          {{- printf " text-%s" "dark" -}}
+        {{- end -}}
+      ">
+        <h4> {{- .Params.title -}}</h4>
+      </div>
+    </div>
+      <div class="row mx-0 mt-3">
+		{{- range first (.Params.count | default 3) $sorted_pages -}}
+		  {{- $page := . -}}
+		  {{- $page_title := partial "helpers/page-title.html" (dict "page" . "self" .) -}}
+		  {{- $self.page_scratch.Set "article_page_fragments" (slice .) -}}
+		  {{- range .Resources.ByType "page" -}}
+			{{- $self.page_scratch.Add "article_page_fragments" . -}}
+		  {{- end -}}
+		  {{- $content_page := first 1 (where ($self.page_scratch.Get "article_page_fragments") "Params.fragment" "in" "content") -}}
+		  {{- $page_id := index (last 1 (findRE "[^\\/]+" .File.Dir)) 0 -}}
+		  {{- $display_summary := or (not (isset $self.Params "summary")) (eq $self.Params.summary true) -}}
+		  {{- $slot_context := dict "page" $page "content_fragment" (index $content_page 0) -}}
+		  {{- partial "helpers/slot.html" (dict "root" $ "slot" "before-item" "data" $slot_context) -}}
+		  <div class="col-lg-3 col-12 mb-2 d-flex h-100">
+		  <a class="rappel-blog" href="{{ .Permalink }}">
+		  <article
+          {{- if $self.Params.collapsible -}}
+            {{- safeHTMLAttr (printf " id=\"list-page-%s\"" (anchorize $page_id)) -}}
+          {{- end }}
+          class="card w-100">
+            {{- if $page_title -}}
+                <div class="col-12 
+                  {{- partial "helpers/text-color.html" (dict "self" $self.self) -}}
+                ">
+                  <div
+                    {{- if $self.Params.collapsible -}}
+                      {{- safeHTMLAttr (print " data-toggle=\"collapse\"") -}}
+                      {{- safeHTMLAttr (printf " data-target=\"#list-page-%s .collapse\"" (anchorize $page_id)) -}}
+                      {{- safeHTMLAttr (printf " data-add-collapse=\"#list-page-%s .article-title\"" (anchorize $page_id)) -}}
+                    {{- end }}
+                    class="row align-items-center justify-content-between mx-0 article-title">
+                    {{- if $display_summary }}
+                      <h4 class="col m-0 text-center
+                        {{- if eq $.page.Permalink .Permalink }} active-page {{- end -}}
+                      ">
+                          {{- $page_title | markdownify -}}
+                      </h4>
+                    {{- else }}
+                      <h5 class="col px-0 m-0 text-center
+                        {{- if eq $.page.Permalink .Permalink }} active-page {{- end -}}
+                      ">
+                          {{- $page_title | markdownify -}}
+                      </h5>
+                    {{- end -}}
+                  </div>
+                </div>
+            {{- end -}}
+              {{- range $content_page }}
+                {{- if and (ne $self.Params.images false) .Params.asset -}}
+                  {{- $file_path := strings.TrimSuffix ".md" (replace .File.Path "/index.md" "") -}}
+                  {{- $page_scratch := $.page_scratch -}}
+                  {{- $root := (dict "page" (dict "file_path" $file_path) "page_scratch" $page_scratch "page" $page) }}
+                  <div class="col-12 pt-1 mb-3">
+                    <img
+                      src="{{ partial "helpers/image.html" (dict "root" $root "asset" .Params.asset) }}"
+                      alt="{{ .Params.subtitle | default $page_title }}"
+                      class="img-fluid">
+                  </div>
+                {{- end -}}
+              {{- end -}}
+			 
+			  {{- if or (and $self.Params.tiled $self.Params.display_date) (and (ne $self.Params.display_categories false) .Params.categories) -}}
+			   <div class="col-12" style="margin-top: -5%;">
+					  {{- range $content_page -}}
+						{{- partial "helpers/publish-date.html" (dict "root" . "background" $bg) -}}
+                    {{- end }}
+                    {{- if ne $self.Params.display_categories false -}}
+                      {{- with .Params.categories }}
+                        {{- partial "helpers/categories.html" (dict "categories" . "background" $bg) -}}
+                      {{- end -}}
+                    {{- end }}
+				</div>
+                {{- end }}
+              {{- if $display_summary }}
+                <div class="col-12 pl-0
+                  {{- partial "helpers/text-color.html" (dict "self" $self.self "light" "secondary") -}}
+                ">
+                  {{- range $content_page }}
+                    {{ cond (isset .Params "summary") (.Params.summary | markdownify) .Summary }}
+                    {{- if and (not $self.Params.tiled) (ne $self.Params.read_more false) -}}
+                      {{- if or $self.Params.read_more .Truncated }}
+                        <a class="badge 
+                          {{- if or (eq $bg "secondary") (eq $bg "primary") -}}
+                            {{- printf " badge-%s" "dark" -}}
+                          {{- else -}}
+                            {{- printf " badge-%s" "secondary" -}}
+                          {{- end -}}
+                        " href="{{ .Permalink }}">{{ i18n "content.readmore" | default "Read more..." }}</a>
+                      {{- end -}}
+                    {{- end -}}
+                  {{- end -}}
+                </div>
+              {{- end -}}
+              {{- partial "helpers/slot.html" (dict "root" $ "slot" "after-item" "data" $slot_context) -}}
+            {{- if $self.Params.collapsible -}}
+              </div>
+            {{- end -}}
+        </article>
+		</a>
+		</div>
+		{{- end -}}
+       <div class="col-lg-3 col-12 mb-2 d-flex">
+	     <a class="rappel-blog blog-suite" href="/blog">
+	       <article class="w-100">
+		     <div class="col-12 pl-0
+                {{- partial "helpers/text-color.html" (dict "self" $self.self) -}}
+              ">
+                <div class="row align-items-center justify-content-between mx-0 article-title">
+				  <h5 class="col px-0 m-0 text-center">Voir la suite</h5>
+				   <span class="col-12 fa-stack fa-3x" title="Voir la suite">
+					  <i class="fas fa-circle fa-stack-2x" style="color:#ffc902;"></i>
+					  <i class="fas fa-angle-double-right fa-stack-1x fa-inverse" style="color:black;"></i>
+                   </span>
+			     </div>
+			  </div>
+		    </article>
+		  </a>
+	   </div>
+    </div>
+  </div>
+</section>
